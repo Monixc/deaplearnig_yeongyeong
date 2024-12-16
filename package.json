@@ -1,0 +1,26 @@
+{
+  "name": "yeongyeong-project",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:client": "pnpm --filter client dev",
+    "dev:infra": "pnpm --filter infrastructure cdk",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "clean": "rimraf node_modules && rimraf packages/client/node_modules && rimraf packages/infrastructure/node_modules",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "aws-cdk": "^2.130.0",
+    "aws-cdk-lib": "^2.130.0",
+    "constructs": "^10.0.0",
+    "eslint": "^9",
+    "prettier": "^3.2.5",
+    "rimraf": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.2"
+  }
+}
