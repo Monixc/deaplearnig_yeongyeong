@@ -1,20 +1,19 @@
 "use client";
-
+// import { signInWithGoogle } from "@/lib/auth/cognito";
 import { useRouter } from "next/navigation";
 
-export default function Login() {
+export default function LoginPage() {
   const router = useRouter();
 
-  //로그인 함수
-  const handleLogin = () => {
-    //구글 로그인 로직 추가
-    router.replace("/home");
-  };
   return (
-    <div className="flex flex-col items-center justify-center h-screen max-w-md mx-auto">
-      <div className="font-bold text-4xl">映詠</div>
-      <div className="position-absolute bottom-0 right-0" onClick={handleLogin}>
-        Login
+    <div className="flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="w-full flex flex-col items-center gap-8">
+        <h1 className="text-4xl font-bold mb-4">映詠</h1>
+
+        <button className="w-full max-w-xs flex items-center justify-center gap-2 mt-8 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded shadow">
+          <img src="/assets/google-logo.svg" alt="Google" className="w-5 h-5" />
+          Google로 계속하기
+        </button>
       </div>
     </div>
   );
