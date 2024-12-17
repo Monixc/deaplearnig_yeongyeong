@@ -10,7 +10,7 @@
         "dynamodb:DeleteItem",
         "dynamodb:BatchWriteItem"
       ],
-      "Resource": "arn:aws:dynamodb:ap-northeast-2:872515271968:table/movie-music-data"
+      "Resource": "arn:aws:dynamodb:ap-northeast-2:${AWS_ACCOUNT_ID}:table/movie-music-data"
     },
     {
       "Effect": "Allow",
