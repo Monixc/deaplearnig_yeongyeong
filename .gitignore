@@ -4,6 +4,9 @@ node_modules
 .npm
 **/node_modules
 
+# Docker
+docker/crawler/task-definition.json
+
 # Build
 dist
 build

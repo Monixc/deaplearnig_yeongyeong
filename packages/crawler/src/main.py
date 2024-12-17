@@ -10,10 +10,41 @@ from tqdm import tqdm
 import time
 import uuid
 import string
-from playwright.sync_api import sync_playwright
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import WebDriverException
+from urllib3.exceptions import MaxRetryError
+import socket
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def create_driver(max_retries=5, retry_interval=10):
+    """Selenium WebDriver 생성 함수"""
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=1920,1080')
+    
+    selenium_url = os.environ.get('SELENIUM_URL', 'http://localhost:4444/wd/hub')
+    
+    for attempt in range(max_retries):
+        try:
+            driver = webdriver.Remote(
+                command_executor=selenium_url,
+                options=options
+            )
+            return driver
+        except (WebDriverException, MaxRetryError, socket.error) as e:
+            if attempt == max_retries - 1:
+                raise
+            logger.warning(f"Attempt {attempt + 1} failed: {str(e)}. Retrying in {retry_interval} seconds...")
+            time.sleep(retry_interval)
 
 class MovieMusicCrawler:
     def __init__(self):
@@ -22,95 +53,113 @@ class MovieMusicCrawler:
         self.dynamodb = boto3.resource('dynamodb')
         self.table = self.dynamodb.Table(os.environ['TABLE_NAME'])
         self.bucket = os.environ['BUCKET_NAME']
-
+        
     def get_movie_list(self, page: str) -> List[Dict]:
         """알파벳별 영화 목록 크롤링"""
         try:
             url = f"{self.base_url}/browse/movies/{page.lower()}"
             logger.info(f"Fetching URL: {url}")
             
-            with sync_playwright() as p:
-                # 브라우저를 headless=False로 실행
-                browser = p.chromium.launch(headless=False)
-                context = browser.new_context()
-                page_context = context.new_page()
-                
+            driver = create_driver()
+            
+            try:
                 # 페이지 로드
-                page_context.goto(url)
-                # 더 긴 대기 시간 설정
-                time.sleep(5)  # 5초로 증가
+                driver.get(url)
                 
-                # 페이지 내용 로깅
-                content = page_context.content()
-                logger.info(f"Page content preview: {content[:1000]}")
+                # 영화 목록이 로드될 때까지 대기
+                wait = WebDriverWait(driver, 20)  # 타임아웃 증가
+                movie_elements = wait.until(
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, 'a[href*="/Movies/Soundtrack/"]')
+                    )
+                )
                 
-                # 영화 목록 추출
                 movies = []
-                movie_elements = page_context.query_selector_all('a[href*="/Movies/Soundtrack/"]')
-                logger.info(f"Found {len(movie_elements)} movie elements")
-                
                 for movie in movie_elements:
                     try:
-                        title_elem = movie.query_selector('div p:first-child').inner_text()
-                        year_elem = movie.query_selector('div p:last-child').inner_text()
-                        url = movie.get_attribute('href')
-                        movieId = url.split('/')[-1]
+                        title = movie.find_element(By.CSS_SELECTOR, 'div p:not(.text-slate-500)').text.strip()
+                        year = movie.find_element(By.CSS_SELECTOR, 'p.text-slate-500').text.strip()
+                        href = movie.get_attribute('href')
+                        movie_id = href.split('/')[-1]
                         
                         movies.append({
-                            'movieId': movieId,
-                            'title': title_elem.strip(),
-                            'year': year_elem.strip(),
-                            'url': f"{self.base_url}{url}"
+                            'movieId': movie_id,
+                            'title': title,
+                            'year': year,
+                            'url': href
                         })
-                        logger.info(f"Found movie: {title_elem} ({year_elem})")
+                        logger.info(f"Found movie: {title} ({year})")
                     except Exception as e:
-                        logger.error(f"Error parsing movie element: {e}")
+                        logger.error(f"Error parsing movie: {e}")
                         continue
-                
-                # 브라우저 종료
-                browser.close()
                 
                 logger.info(f"Total movies found for letter {page}: {len(movies)}")
                 return movies
                 
+            finally:
+                driver.quit()
+                
         except Exception as e:
             logger.error(f"Error in get_movie_list: {e}")
             return []
-
+            
     def get_movie_songs(self, url: str) -> List[Dict]:
         """영화별 수록곡 정보 크롤링"""
         try:
-            response = requests.get(url)
-            if response.status_code != 200:
-                return []
+            logger.info(f"Fetching songs from URL: {url}")
             
-            tree = html.fromstring(response.content)
-            songs = []
+            driver = create_driver()
             
-            # 영화 제목 찾기 (Soundtrack 제외)
-            movie_title = tree.xpath('//h1[contains(@class, "font-medium")]/text()')[0].replace(' Soundtrack', '').strip()
-            
-            # 음악 정보 찾기
-            song_elements = tree.xpath('//p[@class="my-0"]')
-            
-            for song in song_elements:
-                try:
-                    title = song.text.strip()
-                    artist = song.xpath('./following-sibling::p[@class="text-md"]/text()')[0].strip()
-                    
-                    songs.append({
-                        'songId': str(uuid.uuid4()),
-                        'title': title,
-                        'artist': artist,
-                        'movieTitle': movie_title
-                    })
-                    logger.info(f"Found song: {title} by {artist}")
-                except Exception as e:
-                    logger.error(f"Error parsing song element: {e}")
-                    continue
+            try:
+                # 페이지 로드
+                driver.get(url)
                 
-            return songs
-            
+                # 영화 제목이 로드될 때까지 대기
+                wait = WebDriverWait(driver, 20)  # 타임아웃 증가
+                movie_title_elem = wait.until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, 'h1.font-medium')
+                    )
+                )
+                
+                # 영화 제목 추출 (Soundtrack 제외)
+                movie_title = movie_title_elem.text.replace(' Soundtrack', '').strip()
+                
+                # 음악 목록이 로드될 때까지 대기
+                song_elements = wait.until(
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, 'p.my-0')
+                    )
+                )
+                
+                songs = []
+                for song in song_elements:
+                    try:
+                        # 노래 제목
+                        title = song.text.strip()
+                        
+                        # 아티스트 (다음 형제 요소)
+                        artist = driver.execute_script(
+                            "return arguments[0].nextElementSibling.textContent;",
+                            song
+                        ).strip()
+                        
+                        songs.append({
+                            'songId': str(uuid.uuid4()),
+                            'title': title,
+                            'artist': artist,
+                            'movieTitle': movie_title
+                        })
+                        logger.info(f"Found song: {title} by {artist}")
+                    except Exception as e:
+                        logger.error(f"Error parsing song element: {e}")
+                        continue
+                
+                return songs
+                
+            finally:
+                driver.quit()
+                
         except Exception as e:
             logger.error(f"Error in get_movie_songs: {e}")
             return []
