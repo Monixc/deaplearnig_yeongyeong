@@ -10,6 +10,7 @@ from tqdm import tqdm
 import time
 import uuid
 import string
+from playwright.sync_api import sync_playwright
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,37 +29,50 @@ class MovieMusicCrawler:
             url = f"{self.base_url}/browse/movies/{page.lower()}"
             logger.info(f"Fetching URL: {url}")
             
-            response = requests.get(url)
-            logger.info(f"Response status code: {response.status_code}")
-            
-            if response.status_code != 200:
-                logger.error(f"Failed to fetch page: {response.status_code}")
-                return []
-            
-            tree = html.fromstring(response.content)
-            movies = []
-            
-            # 영화 목록 찾기
-            movie_links = tree.xpath('//div[@class="flex flex-col lg:flex-row gap-2 my-6"]/div/a')
-            
-            for movie in movie_links:
-                try:
-                    title = movie.xpath('.//p/text()')[0].strip()  # 영화 제목
-                    url = movie.get('href')
-                    movieId = url.split('/')[-1]
-                    
-                    movies.append({
-                        'movieId': movieId,
-                        'title': title,
-                        'url': f"{self.base_url}{url}"
-                    })
-                    logger.info(f"Found movie: {title}")
-                except Exception as e:
-                    logger.error(f"Error parsing movie element: {e}")
-                    continue
+            with sync_playwright() as p:
+                # 브라우저를 headless=False로 실행
+                browser = p.chromium.launch(headless=False)
+                context = browser.new_context()
+                page_context = context.new_page()
                 
-            return movies
-            
+                # 페이지 로드
+                page_context.goto(url)
+                # 더 긴 대기 시간 설정
+                time.sleep(5)  # 5초로 증가
+                
+                # 페이지 내용 로깅
+                content = page_context.content()
+                logger.info(f"Page content preview: {content[:1000]}")
+                
+                # 영화 목록 추출
+                movies = []
+                movie_elements = page_context.query_selector_all('a[href*="/Movies/Soundtrack/"]')
+                logger.info(f"Found {len(movie_elements)} movie elements")
+                
+                for movie in movie_elements:
+                    try:
+                        title_elem = movie.query_selector('div p:first-child').inner_text()
+                        year_elem = movie.query_selector('div p:last-child').inner_text()
+                        url = movie.get_attribute('href')
+                        movieId = url.split('/')[-1]
+                        
+                        movies.append({
+                            'movieId': movieId,
+                            'title': title_elem.strip(),
+                            'year': year_elem.strip(),
+                            'url': f"{self.base_url}{url}"
+                        })
+                        logger.info(f"Found movie: {title_elem} ({year_elem})")
+                    except Exception as e:
+                        logger.error(f"Error parsing movie element: {e}")
+                        continue
+                
+                # 브라우저 종료
+                browser.close()
+                
+                logger.info(f"Total movies found for letter {page}: {len(movies)}")
+                return movies
+                
         except Exception as e:
             logger.error(f"Error in get_movie_list: {e}")
             return []
