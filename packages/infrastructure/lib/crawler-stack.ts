@@ -12,6 +12,24 @@ export class CrawlerStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // VPC 생성
+    const vpc = new ec2.Vpc(this, "CrawlerVPC", {
+      maxAzs: 2, // 가용영역 2개 사용
+      natGateways: 1,
+      subnetConfiguration: [
+        {
+          cidrMask: 24,
+          name: "Public",
+          subnetType: ec2.SubnetType.PUBLIC,
+        },
+        {
+          cidrMask: 24,
+          name: "Private",
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+        },
+      ],
+    });
+
     // S3 버킷 생성
     const dataBucket = new s3.Bucket(this, "MovieMusicData", {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -36,6 +54,7 @@ export class CrawlerStack extends cdk.Stack {
     const cluster = new ecs.Cluster(this, "CrawlerCluster", {
       clusterName: "movie-music-crawler",
       containerInsights: true,
+      vpc: vpc,
     });
 
     // 태스크 실행 역할
@@ -73,6 +92,13 @@ export class CrawlerStack extends cdk.Stack {
           taskDefinition,
           taskCount: 1,
           subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+          securityGroups: [
+            new ec2.SecurityGroup(this, "CrawlerSecurityGroup", {
+              vpc,
+              allowAllOutbound: true,
+              description: "Security group for crawler task",
+            }),
+          ],
         }),
       ],
     });
