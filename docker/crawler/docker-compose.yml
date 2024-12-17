@@ -1,14 +1,19 @@
-# docker-compose.yml
-version: "3.8"
-
+version: "3"
 services:
-  crawler:
-    build:
-      context: .
-      dockerfile: docker/crawler/Dockerfile
+  selenium-hub:
+    image: selenium/hub:4.16.1
+    container_name: selenium-hub
+    ports:
+      - "4442-4444:4442-4444"
+
+  chrome:
+    image: selenium/node-chrome:4.16.1
+    container_name: chrome
+    shm_size: 2gb
+    depends_on:
+      - selenium-hub
     environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
-    volumes:
-      - ./packages/crawler:/app
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=4
