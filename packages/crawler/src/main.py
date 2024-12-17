@@ -1,6 +1,6 @@
 import boto3
 import requests
-from bs4 import BeautifulSoup
+from lxml import html
 from datetime import datetime
 import os
 import json
@@ -35,16 +35,16 @@ class MovieMusicCrawler:
                 logger.error(f"Failed to fetch page: {response.status_code}")
                 return []
             
-            soup = BeautifulSoup(response.text, 'html.parser')
+            tree = html.fromstring(response.content)
             movies = []
             
             # 영화 목록 찾기
-            movie_links = soup.select('a[href^="/Movies/Soundtrack/"]')
+            movie_links = tree.xpath('//div[@class="flex flex-col lg:flex-row gap-2 my-6"]/div/a')
             
             for movie in movie_links:
                 try:
-                    title = movie.select_one('p').text.strip()  # 영화 제목
-                    url = movie['href']
+                    title = movie.xpath('.//p/text()')[0].strip()  # 영화 제목
+                    url = movie.get('href')
                     movieId = url.split('/')[-1]
                     
                     movies.append({
@@ -70,19 +70,19 @@ class MovieMusicCrawler:
             if response.status_code != 200:
                 return []
             
-            soup = BeautifulSoup(response.text, 'html.parser')
+            tree = html.fromstring(response.content)
             songs = []
             
             # 영화 제목 찾기 (Soundtrack 제외)
-            movie_title = soup.select_one('h1.font-medium').text.replace(' Soundtrack', '').strip()
+            movie_title = tree.xpath('//h1[contains(@class, "font-medium")]/text()')[0].replace(' Soundtrack', '').strip()
             
             # 음악 정보 찾기
-            song_elements = soup.find_all('p', {'class': 'my-0'})
+            song_elements = tree.xpath('//p[@class="my-0"]')
             
             for song in song_elements:
                 try:
                     title = song.text.strip()
-                    artist = song.find_next('p', {'class': 'text-md'}).text.strip()
+                    artist = song.xpath('./following-sibling::p[@class="text-md"]/text()')[0].strip()
                     
                     songs.append({
                         'songId': str(uuid.uuid4()),
