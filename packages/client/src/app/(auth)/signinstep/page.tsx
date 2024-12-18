@@ -174,39 +174,46 @@ export default function SignInStep() {
     }
 
     setIsAnalyzing(true);
-    router.push("/analyzing");
-
     try {
       const analysis = await analyzeMusicTaste(selectedMusic);
 
+      // 분석 데이터 생성
+      const analysisData = {
+        userId: session?.user?.id || "anonymous",
+        timestamp: new Date().toISOString(),
+        analysis: {
+          genres: analysis.genres,
+          popularity: analysis.popularity,
+          selectedTracks: analysis.tracks.map((track) => ({
+            id: track.id,
+            name: track.name,
+            artists: track.artists,
+            popularity: track.popularity,
+          })),
+        },
+      };
+
+      // 로컬 스토리지에 저장
+      localStorage.setItem("musicAnalysis", JSON.stringify(analysisData));
+
+      // DynamoDB에 저장
       const response = await fetch("/api/music-analysis", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          userId: session?.user?.id || "anonymous",
-          timestamp: new Date().toISOString(),
-          analysis: {
-            genres: analysis.genres,
-            popularity: analysis.popularity,
-            selectedTracks: analysis.tracks.map((track) => ({
-              id: track.id,
-              name: track.name,
-              artists: track.artists,
-              popularity: track.popularity,
-            })),
-          },
-        }),
+        body: JSON.stringify(analysisData),
       });
 
       if (!response.ok) {
         throw new Error("Failed to save analysis results");
       }
+
+      // 분석 페이지로 이동
+      router.push("/analyzing");
     } catch (error) {
       console.error("Failed to analyze music taste:", error);
       alert("음악 취향 분석 중 오류가 발생했습니다.");
-      router.push("/signinstep");
     } finally {
       setIsAnalyzing(false);
     }
