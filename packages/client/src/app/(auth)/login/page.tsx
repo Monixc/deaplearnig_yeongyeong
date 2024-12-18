@@ -15,7 +15,7 @@ export default function LoginPage() {
       <div className="w-full flex flex-col items-center gap-8">
         <h1 className="text-4xl font-bold mb-4 text-white">映詠</h1>
         <p className="text-gray-300 text-center max-w-md">
-          당신만의 음악 취향을 발견하고 공유하세요
+          음악과 영화를 연결하다.
         </p>
 
         <button
