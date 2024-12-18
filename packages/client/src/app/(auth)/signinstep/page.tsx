@@ -5,6 +5,10 @@ import SpotifyWebApi from "spotify-web-api-node";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+interface ExtendedAlbum extends SpotifyApi.AlbumObjectSimplified {
+  popularity?: number;
+}
+
 export default function SignInStep() {
   const { data: session, status } = useSession();
   const [step, setStep] = useState(0);
@@ -31,7 +35,7 @@ export default function SignInStep() {
       });
 
       if (result.body.albums) {
-        const tracks = result.body.albums.items.map((album) => ({
+        const tracks = result.body.albums.items.map((album: ExtendedAlbum) => ({
           id: album.id,
           name: album.name,
           artists: album.artists,
