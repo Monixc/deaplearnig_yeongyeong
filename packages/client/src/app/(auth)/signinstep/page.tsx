@@ -3,82 +3,90 @@
 import { useState, useEffect } from "react";
 import SpotifyWebApi from "spotify-web-api-node";
 import { useRouter } from "next/navigation";
-
-const spotifyApi = new SpotifyWebApi({
-  clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
-  clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
-});
+import { useSession } from "next-auth/react";
 
 export default function SignInStep() {
-  const [step, setStep] = useState(1);
+  const { data: session, status } = useSession();
+  const [step, setStep] = useState(0);
   const [topTracks, setTopTracks] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [selectedMusic, setSelectedMusic] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [spotifyApi] = useState(
+    () =>
+      new SpotifyWebApi({
+        clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
+        clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
+      })
+  );
   const router = useRouter();
+
+  const loadInitialTracks = async () => {
+    try {
+      const result = await spotifyApi.getNewReleases({
+        limit: 18,
+        country: "KR",
+      });
+
+      if (result.body.albums) {
+        const tracks = result.body.albums.items.map((album) => ({
+          id: album.id,
+          name: album.name,
+          artists: album.artists,
+          album: {
+            images: album.images,
+          },
+          popularity: album.popularity || 0,
+        }));
+        setTopTracks(tracks);
+      }
+    } catch (error) {
+      console.error("Error loading initial tracks:", error);
+      try {
+        const searchResult = await spotifyApi.searchTracks(
+          "genre:k-pop year:2024",
+          {
+            limit: 18,
+            market: "KR",
+          }
+        );
+        setTopTracks(searchResult.body.tracks?.items || []);
+      } catch (searchError) {
+        console.error("Error searching tracks:", searchError);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+      return;
+    }
+
+    if (status === "authenticated" && session?.accessToken) {
+      spotifyApi.setAccessToken(session.accessToken);
+      loadInitialTracks();
+    }
+  }, [status, session, router, spotifyApi]);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setStep((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const getSpotifyToken = async () => {
-      try {
-        const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
-        const clientSecret = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET;
-
-        if (!clientId || !clientSecret) {
-          console.error("Spotify credentials are missing");
-          return;
+      setStep((prev) => {
+        if (prev === 1) {
+          clearInterval(timer);
+          setTimeout(() => setStep(2), 3500);
+          return prev;
         }
+        return prev < 2 ? prev + 1 : prev;
+      });
+    }, 2000);
 
-        const params = new URLSearchParams();
-        params.append("grant_type", "client_credentials");
-        params.append(
-          "scope",
-          "user-read-private playlist-read-private user-read-email user-library-read"
-        );
-
-        const response = await fetch("https://accounts.spotify.com/api/token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
-          },
-          body: params,
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Spotify API Error: ${errorText}`);
-        }
-
-        const data = await response.json();
-        spotifyApi.setAccessToken(data.access_token);
-
-        // 토큰이 정상적으로 설정되었는지 확인
-        console.log("Token set:", data.access_token);
-
-        const searchResult = await spotifyApi.searchTracks("year:2024", {
-          limit: 18,
-          market: "US",
-        });
-        setTopTracks(searchResult.body.tracks?.items || []);
-      } catch (error) {
-        console.error("Error initializing Spotify:", error);
-      }
+    return () => {
+      clearInterval(timer);
     };
-
-    if (step >= 6) {
-      getSpotifyToken();
-    }
-  }, [step]);
+  }, []);
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -166,17 +174,18 @@ export default function SignInStep() {
     }
 
     setIsAnalyzing(true);
+    router.push("/analyzing");
+
     try {
       const analysis = await analyzeMusicTaste(selectedMusic);
 
-      // DynamoDB에 저장
       const response = await fetch("/api/music-analysis", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId: "temp-user-id", // 실제 사용자 ID로 교체 필요
+          userId: session?.user?.id || "anonymous",
           timestamp: new Date().toISOString(),
           analysis: {
             genres: analysis.genres,
@@ -194,32 +203,48 @@ export default function SignInStep() {
       if (!response.ok) {
         throw new Error("Failed to save analysis results");
       }
-
-      // 다음 단계로 이동
-      router.push("/home");
     } catch (error) {
       console.error("Failed to analyze music taste:", error);
       alert("음악 취향 분석 중 오류가 발생했습니다.");
+      router.push("/signinstep");
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4">
-      <div
-        className={`text-2xl font-bold mt-8 mb-12 ${
-          step % 2 === 1 &&
-          "transition-all duration-[3000ms] ease-in-out opacity-0 blur-lg transform scale-95"
-        }`}>
-        {step === 0 && "영영에 오신 것을 환영해요"}
-        {step === 2 && "다른 환영 문구"}
-        {step === 4 && "먼저, 좋아하는 음악을 선택해주세요."}
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-black to-green-900 text-white">
+      {step < 2 && (
+        <div className="w-full max-w-lg mx-auto text-center px-4 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div
+            className={`transition-all duration-[2500ms] ease-in-out absolute w-full ${
+              step === 0
+                ? "opacity-100 transform scale-100 translate-y-0"
+                : "opacity-0 transform scale-95 -translate-y-4"
+            }`}>
+            <h1 className="text-4xl font-bold">영영에 오신 것을 환영합니다</h1>
+          </div>
+          <div
+            className={`transition-all duration-[2500ms] ease-in-out absolute w-full ${
+              step === 1
+                ? "opacity-100 transform scale-100 translate-y-0"
+                : "opacity-0 transform scale-95 translate-y-4"
+            }`}>
+            <h1 className="text-4xl font-bold">
+              먼저, 좋아하는 음악을 선택해주세요
+            </h1>
+          </div>
+        </div>
+      )}
 
-      {step >= 6 && (
-        <div className="w-full max-w-4xl flex flex-col h-[calc(100vh-200px)]">
-          <div className="sticky top-0 bg-white py-6 z-10">
+      <div
+        className={`w-full transition-all duration-1000 ease-in-out ${
+          step >= 2
+            ? "opacity-100 transform scale-100"
+            : "opacity-0 transform scale-95 pointer-events-none absolute"
+        }`}>
+        <div className="w-full max-w-4xl px-8 mx-auto">
+          <div className="sticky top-0 pt-6 pb-4 bg-gradient-to-b from-black to-transparent z-10">
             <input
               type="text"
               value={searchQuery}
@@ -227,58 +252,83 @@ export default function SignInStep() {
                 setSearchQuery(e.target.value);
                 handleSearch(e.target.value);
               }}
-              placeholder="음악 검색..."
-              className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="음악을 검색해보세요"
+              className="w-full p-4 rounded-full bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent backdrop-blur-lg"
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto pb-24">
-            <div className="grid grid-cols-3 gap-4">
-              {(searchQuery ? searchResults : topTracks).map((track) => (
-                <TrackItem
-                  key={track.id}
-                  track={track}
-                  isSelected={selectedMusic.some(
-                    (item) => item.id === track.id
-                  )}
-                  onSelect={handleMusicSelect}
-                />
-              ))}
-            </div>
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-6 pb-24 overflow-y-auto scrollbar-hide p-2">
+            {(searchQuery ? searchResults : topTracks).map((track) => (
+              <TrackItem
+                key={track.id}
+                track={track}
+                isSelected={selectedMusic.some((item) => item.id === track.id)}
+                onSelect={handleMusicSelect}
+              />
+            ))}
           </div>
 
           {selectedMusic.length > 0 && (
-            <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-lg">
+            <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-green-900 to-transparent backdrop-blur-md p-6">
               <div className="max-w-4xl mx-auto flex justify-between items-center">
-                <span>{selectedMusic.length}/20곡 선택됨</span>
+                <span className="text-lg font-semibold">
+                  {selectedMusic.length}/20곡 선택됨
+                </span>
                 <button
                   onClick={handleComplete}
-                  className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
-                  완료
+                  disabled={selectedMusic.length < 20}
+                  className={`px-8 py-3 rounded-full font-semibold transition-all duration-200 
+                    ${
+                      selectedMusic.length >= 20
+                        ? "bg-green-500 hover:bg-green-400 text-white"
+                        : "bg-white/10 text-gray-400 cursor-not-allowed"
+                    }`}>
+                  {isAnalyzing ? "분석 중..." : "완료"}
                 </button>
               </div>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 const TrackItem = ({ track, isSelected, onSelect }: any) => (
   <div
-    className={`p-4 border rounded cursor-pointer ${
-      isSelected ? "bg-blue-100" : ""
-    }`}
-    onClick={() => onSelect(track)}>
-    <img
-      src={track.album.images[1]?.url}
-      alt={track.name}
-      className="w-full aspect-square object-cover rounded mb-2"
-    />
-    <div className="font-semibold truncate">{track.name}</div>
-    <div className="text-sm text-gray-600 truncate">
-      {track.artists.map((artist: any) => artist.name).join(", ")}
+    onClick={() => onSelect(track)}
+    className={`relative group cursor-pointer rounded-lg overflow-hidden transition-all duration-200 transform hover:scale-105 ${
+      isSelected ? "ring-2 ring-green-500" : ""
+    }`}>
+    <div className="relative aspect-square">
+      <img
+        src={track.album.images[0]?.url}
+        alt={track.name}
+        className="w-full h-full object-cover"
+      />
+      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all duration-200" />
+      <div className="absolute inset-0 p-4 flex flex-col justify-end">
+        <div className="font-semibold truncate">{track.name}</div>
+        <div className="text-sm text-gray-300 truncate">
+          {track.artists.map((artist: any) => artist.name).join(", ")}
+        </div>
+      </div>
+      {isSelected && (
+        <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1">
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+        </div>
+      )}
     </div>
   </div>
 );
