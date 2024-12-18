@@ -1,6 +1,6 @@
 require("dotenv").config({ path: ".env.local" });
-const { OpenAI } = require("openai");
-const fs = require("fs");
+import { OpenAI } from "openai";
+import * as fs from "fs";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

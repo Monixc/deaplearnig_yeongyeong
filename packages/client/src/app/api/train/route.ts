@@ -1,11 +1,11 @@
-import { DynamoDB } from "aws-sdk";
+import AWS from "aws-sdk";
 import { OpenAI } from "openai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const dynamodb = new DynamoDB.DocumentClient({
+const dynamodb = new AWS.DynamoDB.DocumentClient({
   region: process.env.REACT_APP_REGION,
   credentials: {
     accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID!,
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
       const analyzeRecommendationReason = () => {
         // 영화와 음악의 관계, 장르, 분위기 등을 고려한 추천 이유 생성
-        return `이 영화가 왜 사용자의 음악 취향과 맞는지, 어떤 음악적 요소가 ���력적인지, 어떤 감정을 전달하는지 등을 분석하여 설명`;
+        return `이 영화가 왜 사용자의 음악 취향과 맞는지, 어떤 음악적 요소가 매력적인지, 어떤 감정을 전달하는지 등을 분석하여 설명`;
       };
 
       return {
@@ -77,7 +77,9 @@ export async function POST(request: Request) {
 
     // 3. OpenAI 파인튜닝 API 호출
     const file = await openai.files.create({
-      file: Buffer.from(JSON.stringify(trainingExamples)),
+      file: new File([JSON.stringify(trainingExamples)], "training.jsonl", {
+        type: "application/json",
+      }),
       purpose: "fine-tune",
     });
 

@@ -52,7 +52,9 @@ async function createFineTune() {
 
     // 3. 파일 생성
     const file = await openai.files.create({
-      file: Buffer.from(JSON.stringify(trainingData)),
+      file: new File([JSON.stringify(trainingData)], "training.json", {
+        type: "application/json",
+      }),
       purpose: "fine-tune",
     });
 

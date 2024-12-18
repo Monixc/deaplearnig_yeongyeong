@@ -1,12 +1,12 @@
 require("dotenv").config({ path: ".env.local" });
-const AWS = require("aws-sdk");
+import { DynamoDB } from "aws-sdk";
 const fs = require("fs");
 
-const dynamodb = new AWS.DynamoDB.DocumentClient({
+const dynamodb = new DynamoDB.DocumentClient({
   region: "ap-northeast-2",
   credentials: {
-    accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID,
-    secretAccessKey: process.env.REACT_APP_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.REACT_APP_SECRET_ACCESS_KEY!,
   },
 });
 
