@@ -39,6 +39,52 @@ interface TrendingMovie {
   vote_average: number;
 }
 
+function HomeSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-black to-green-900 text-white">
+      {/* 상단바 스켈레톤 */}
+      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/50 backdrop-blur-md">
+        <div className="container max-w-7xl mx-auto flex h-16 items-center px-4">
+          <div className="mr-4">
+            <div className="w-20 h-8 bg-white/10 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container max-w-7xl mx-auto py-8 px-4 space-y-12">
+        {/* 검색 스켈레톤 */}
+        <section className="pt-4">
+          <div className="w-full h-14 bg-white/10 rounded-full animate-pulse"></div>
+        </section>
+
+        {/* 추천 영화 스켈레톤 */}
+        <section>
+          <div className="h-8 bg-white/10 rounded w-1/3 mb-6 animate-pulse"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="aspect-[2/3] relative rounded-lg overflow-hidden bg-white/10 animate-pulse"></div>
+            ))}
+          </div>
+        </section>
+
+        {/* 인기 영화 스켈레톤 */}
+        <section>
+          <div className="h-8 bg-white/10 rounded w-1/3 mb-6 animate-pulse"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="aspect-[2/3] relative rounded-lg overflow-hidden bg-white/10 animate-pulse"></div>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -124,12 +170,8 @@ export default function Home() {
     router.push(`/movie/${movieSlug}`);
   };
 
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-black to-green-900 text-white">
-        <div className="text-center pt-20">Loading...</div>
-      </div>
-    );
+  if (status === "loading" || loading) {
+    return <HomeSkeleton />;
   }
 
   return (

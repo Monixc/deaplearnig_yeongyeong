@@ -29,6 +29,56 @@ interface MovieData {
   tracks?: Track[];
 }
 
+function MovieSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-black to-green-900 text-white">
+      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/50 backdrop-blur-md">
+        <div className="container max-w-7xl mx-auto flex h-16 items-center px-4">
+          <div className="mr-4">
+            <div className="w-20 h-8 bg-white/10 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container max-w-7xl mx-auto py-8 px-4 space-y-12">
+        <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="w-48 mx-auto md:mx-0">
+              <div className="aspect-[2/3] relative rounded-lg overflow-hidden bg-white/10 animate-pulse"></div>
+            </div>
+            <div className="md:col-span-3 space-y-4">
+              <div className="h-10 bg-white/10 rounded w-3/4 animate-pulse"></div>
+              <div className="space-y-2">
+                <div className="h-6 bg-white/10 rounded w-1/4 animate-pulse"></div>
+                <div className="h-6 bg-white/10 rounded w-1/3 animate-pulse"></div>
+              </div>
+              <div className="mt-6 space-y-2">
+                <div className="h-8 bg-white/10 rounded w-1/4 animate-pulse"></div>
+                <div className="h-24 bg-white/10 rounded animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
+          <section className="mt-24">
+            <div className="h-8 bg-white/10 rounded w-1/4 mb-6 animate-pulse"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white/5 rounded-lg p-4">
+                  <div className="aspect-square rounded bg-white/10 animate-pulse mb-4"></div>
+                  <div className="space-y-2">
+                    <div className="h-5 bg-white/10 rounded w-3/4 animate-pulse"></div>
+                    <div className="h-4 bg-white/10 rounded w-1/2 animate-pulse"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 export default function MoviePage() {
   const router = useRouter();
   const params = useParams();
@@ -82,11 +132,7 @@ export default function MoviePage() {
   }, [status, router, params]);
 
   if (status === "loading" || loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-black to-green-900 text-white">
-        <div className="text-center pt-20">Loading...</div>
-      </div>
-    );
+    return <MovieSkeleton />;
   }
 
   if (!movieData) {
