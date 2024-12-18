@@ -20,4 +20,4 @@ applications:
         paths:
           - node_modules/**/*
           - packages/client/node_modules/**/*
-    appRoot: .
+    appRoot: packages/client
