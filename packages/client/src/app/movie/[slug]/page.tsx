@@ -44,40 +44,31 @@ export default function MoviePage() {
 
     const loadMovieData = async () => {
       try {
-        // 로컬 스토리지에서 추천 영화 데이터 확인
-        const rawData = localStorage.getItem("movieRecommendations");
-        if (rawData) {
-          const recommendations = JSON.parse(rawData);
-          const movieTitle = decodeURIComponent(params?.slug as string);
-          const recommendation = recommendations.find(
-            (rec: any) => rec.title === movieTitle
-          );
+        setLoading(true);
+        const movieTitle = decodeURIComponent(params?.slug as string);
 
-          if (recommendation) {
-            // 미디어 정보 가져오기
-            const response = await fetch("/api/media", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                title: recommendation.title,
-                songs: recommendation.ost,
-              }),
-            });
+        // API를 통해 영화 정보와 OST 데이터 가져오기
+        const response = await fetch("/api/media", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: movieTitle,
+            songs: [], // 빈 배열로 시작, API에서 영화의 OST 목록을 찾아서 반환
+          }),
+        });
 
-            if (!response.ok) {
-              throw new Error("Failed to fetch media details");
-            }
-
-            const data = await response.json();
-            setMovieData({
-              ...recommendation,
-              movieDetails: data.movie,
-              tracks: data.tracks,
-            });
-          }
+        if (!response.ok) {
+          throw new Error("Failed to fetch movie details");
         }
+
+        const data = await response.json();
+        setMovieData({
+          title: movieTitle,
+          movieDetails: data.movie,
+          tracks: data.tracks,
+        });
       } catch (error) {
         console.error("Error loading movie data:", error);
       } finally {
@@ -173,46 +164,45 @@ export default function MoviePage() {
           <section className="mt-24">
             <h2 className="text-2xl font-semibold mb-6">🎵 영화 OST</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {movieData.tracks
-                ?.filter(
-                  (track) =>
-                    track.album_image || track.preview_url || track.spotify_url
-                )
-                .map((track, index) => (
-                  <div
-                    key={index}
-                    className="bg-white/5 backdrop-blur-lg rounded-lg p-4 hover:bg-white/10 transition-colors">
-                    <div className="aspect-square relative rounded overflow-hidden mb-4">
-                      <img
-                        src={track.album_image || "/album-placeholder.jpg"}
-                        alt={track.title}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    </div>
-                    <h3 className="font-semibold text-sm mb-1 truncate">
-                      {track.title}
-                    </h3>
-                    <p className="text-xs text-gray-300 truncate">
-                      {track.artist}
-                    </p>
-                    {track.preview_url && (
-                      <audio
-                        controls
-                        className="mt-2 w-full h-8"
-                        src={track.preview_url}
-                      />
-                    )}
-                    {track.spotify_url && (
-                      <a
-                        href={track.spotify_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 text-xs text-green-400 hover:text-green-300 block">
-                        Spotify에서 듣기
-                      </a>
-                    )}
+              {movieData.tracks?.map((track, index) => (
+                <div
+                  key={index}
+                  className="bg-white/5 backdrop-blur-lg rounded-lg p-4 hover:bg-white/10 transition-colors">
+                  <div className="aspect-square relative rounded overflow-hidden mb-4">
+                    <img
+                      src={track.album_image || "/album-placeholder.jpg"}
+                      alt={track.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
                   </div>
-                ))}
+                  <h3 className="font-semibold text-sm mb-1 truncate">
+                    {track.title}
+                  </h3>
+                  <p className="text-xs text-gray-300 truncate">
+                    {track.artist}
+                  </p>
+                  {track.preview_url && (
+                    <audio
+                      controls
+                      className="mt-2 w-full h-8"
+                      src={track.preview_url}
+                    />
+                  )}
+                  {track.spotify_url ? (
+                    <a
+                      href={track.spotify_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 text-xs text-green-400 hover:text-green-300 block">
+                      Spotify에서 듣기
+                    </a>
+                  ) : (
+                    <p className="mt-2 text-xs text-gray-400">
+                      Spotify에서 찾을 수 없음
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
           </section>
         </div>
