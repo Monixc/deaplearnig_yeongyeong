@@ -52,13 +52,18 @@ async function searchSpotifyTrack(
     const tracks = data.tracks?.items || [];
 
     // 제목이나 아티스트가 부분적으로 일치하는 트랙 찾기
+    interface Track {
+      name: string;
+      artists: { name: string }[];
+      external_urls: { spotify: string };
+      preview_url: string;
+    }
+
     const matchingTrack = tracks.find(
-      (track) =>
+      (track: Track) =>
         track.name.toLowerCase().includes(title.toLowerCase()) ||
-        track.artists.some(
-          (a) =>
-            a.name.toLowerCase().includes(artist.toLowerCase()) ||
-            artist.toLowerCase().includes(a.name.toLowerCase())
+        track.artists.some((a: { name: string }) =>
+          a.name.toLowerCase().includes(artist.toLowerCase())
         )
     );
 
@@ -66,7 +71,9 @@ async function searchSpotifyTrack(
 
     return {
       title: matchingTrack.name,
-      artist: matchingTrack.artists.map((a) => a.name).join(", "),
+      artist: matchingTrack.artists
+        .map((a: { name: string }) => a.name)
+        .join(", "),
       spotify_url: matchingTrack.external_urls.spotify,
       preview_url: matchingTrack.preview_url,
       album_image: matchingTrack.album.images[0]?.url,
