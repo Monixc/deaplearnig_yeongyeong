@@ -37,7 +37,6 @@ interface TrendingMovie {
   overview: string;
   release_date: string;
   vote_average: number;
-  ost: { title: string; artist: string }[];
 }
 
 export default function Home() {
@@ -231,7 +230,11 @@ export default function Home() {
                   <div className="absolute inset-0 p-4 flex flex-col justify-end">
                     <h3 className="font-semibold mb-2">{movie.title}</h3>
                     <p className="text-sm text-gray-300">
-                      {movie.ost.length}개의 OST
+                      평점: {movie.vote_average.toFixed(1)} / 10
+                    </p>
+                    <p className="text-sm text-gray-300">
+                      개봉일:{" "}
+                      {new Date(movie.release_date).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -239,7 +242,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="text-center text-gray-400">
-              현재 OST 정보가 있는 인기 영화가 없습니다.
+              현재 인기 영화 정보를 불러오는 중입니다.
             </div>
           )}
         </section>
