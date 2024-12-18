@@ -5,12 +5,15 @@ applications:
         preBuild:
           commands:
             - npm install -g pnpm
-            - rm -rf node_modules
-            - rm -rf packages/*/node_modules
+            - rm -rf node_modules packages/*/node_modules
+            - cd packages/client
             - pnpm install --force --no-frozen-lockfile
+            - cd ../..
         build:
           commands:
+            - cd packages/client
             - pnpm build
+            - cd ../..
       artifacts:
         baseDirectory: packages/client/.next
         files:
