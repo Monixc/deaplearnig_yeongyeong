@@ -115,7 +115,7 @@ ${availableMovies.join("\n")}
 [추천 요청사항]
 1. 위 [추천 가능한 영화 목록] 중에서만 3-5개를 추천해주세요.
 2. 각 영화마다 추천 이유를 음악적 관점에서 설명해주세요.
-3. 특히 해당 영화의 OST나 음악적 요소가 사용자의 취향과 어떻게 ��관되는지 구체적으로 설명해주세요.
+3. 특히 해당 영화의 OST나 음악적 요소가 사용자의 취향과 어떻게 관되는지 구체적으로 설명해주세요.
 4. 반드시 [추천 가능한 영화 목록]에 있는 영화만 추천해야 합니다.
 
 응답 형식:
@@ -161,12 +161,12 @@ async function getGptRecommendations(
     console.log("Generated GPT prompt:", prompt);
 
     const completion = await openai.chat.completions.create({
-      model: process.env.FINE_TUNED_MODEL_ID || "gpt-3.5-turbo-1106",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
           content: `당신은 음악 취향을 기반으로 영화를 추천하는 전문가입니다. 
-          주어진 영화 목록에서만 추천해야 하며, 목록에 없는 영화는 절대 추천하면 안 됩니다.`,
+          주어진 영화 목록에서만 추천해야 하며, 목록에 없는 영화는 절대 추천하면 안 됩니다.항상 한글로만 응답하세요`,
         },
         {
           role: "user",
@@ -262,7 +262,7 @@ function combineRecommendations(
 ) {
   return gptRecommendations.recommendations
     .map((gptRec) => {
-      // DynamoDB에��� 매칭되는 영화 찾기
+      // DynamoDB에 매칭되는 영화 찾기
       const movieMatch = movieData?.find((movie) => {
         const matchResult = movie?.title
           ?.toLowerCase()
