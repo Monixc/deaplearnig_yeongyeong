@@ -5,6 +5,8 @@ applications:
         preBuild:
           commands:
             - npm install -g pnpm
+            - rm -rf node_modules
+            - rm -rf packages/*/node_modules
             - pnpm install --force --no-frozen-lockfile
         build:
           commands:
