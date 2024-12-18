@@ -1,10 +1,10 @@
 import { DynamoDB } from "aws-sdk";
 
 const dynamodb = new DynamoDB.DocumentClient({
-  region: process.env.AWS_DEFAULT_REGION || "ap-northeast-2",
+  region: process.env.REACT_APP_REGION || "ap-northeast-2",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.REACT_APP_SECRET_ACCESS_KEY!,
   },
 });
 

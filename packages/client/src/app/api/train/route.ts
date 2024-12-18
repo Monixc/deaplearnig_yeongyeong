@@ -6,10 +6,10 @@ const openai = new OpenAI({
 });
 
 const dynamodb = new DynamoDB.DocumentClient({
-  region: process.env.AWS_DEFAULT_REGION,
+  region: process.env.REACT_APP_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.REACT_APP_SECRET_ACCESS_KEY!,
   },
 });
 
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
       const analyzeRecommendationReason = () => {
         // 영화와 음악의 관계, 장르, 분위기 등을 고려한 추천 이유 생성
-        return `이 영화가 왜 사용자의 음악 취향과 맞는지, 어떤 음악적 요소가 매력적인지, 어떤 감정을 전달하는지 등을 분석하여 설명`;
+        return `이 영화가 왜 사용자의 음악 취향과 맞는지, 어떤 음악적 요소가 ���력적인지, 어떤 감정을 전달하는지 등을 분석하여 설명`;
       };
 
       return {
