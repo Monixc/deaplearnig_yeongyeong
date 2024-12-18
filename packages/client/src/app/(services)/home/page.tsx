@@ -37,7 +37,52 @@ interface TrendingMovie {
   overview: string;
   release_date: string;
   vote_average: number;
-  ost: { title: string; artist: string }[];
+}
+
+function HomeSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-black to-green-900 text-white">
+      {/* 상단바 스켈레톤 */}
+      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/50 backdrop-blur-md">
+        <div className="container max-w-7xl mx-auto flex h-16 items-center px-4">
+          <div className="mr-4">
+            <div className="w-20 h-8 bg-white/10 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container max-w-7xl mx-auto py-8 px-4 space-y-12">
+        {/* 검색 스켈레톤 */}
+        <section className="pt-4">
+          <div className="w-full h-14 bg-white/10 rounded-full animate-pulse"></div>
+        </section>
+
+        {/* 추천 영화 스켈레톤 */}
+        <section>
+          <div className="h-8 bg-white/10 rounded w-1/3 mb-6 animate-pulse"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="aspect-[2/3] relative rounded-lg overflow-hidden bg-white/10 animate-pulse"></div>
+            ))}
+          </div>
+        </section>
+
+        {/* 인기 영화 스켈레톤 */}
+        <section>
+          <div className="h-8 bg-white/10 rounded w-1/3 mb-6 animate-pulse"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="aspect-[2/3] relative rounded-lg overflow-hidden bg-white/10 animate-pulse"></div>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -125,12 +170,8 @@ export default function Home() {
     router.push(`/movie/${movieSlug}`);
   };
 
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-black to-green-900 text-white">
-        <div className="text-center pt-20">Loading...</div>
-      </div>
-    );
+  if (status === "loading" || loading) {
+    return <HomeSkeleton />;
   }
 
   return (
@@ -172,7 +213,7 @@ export default function Home() {
         {/* 추천 섹션 */}
         <section>
           <h2 className="text-2xl font-semibold tracking-tight mb-6">
-            {session?.user?.name}님을 위한 추천 플레이리스트
+            🎧 {session?.user?.name}님을 위한 추천 영화
           </h2>
           {loading ? (
             <div className="text-center">로딩 중...</div>
@@ -192,17 +233,34 @@ export default function Home() {
                   key={index}
                   onClick={() => handleMovieClick(rec)}
                   className="group relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 hover:scale-105">
-                  <img
-                    src={rec.movieDetails?.poster_path}
-                    alt={rec.title}
-                    className="w-full h-64 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all duration-200" />
-                  <div className="absolute inset-0 p-4 flex flex-col justify-end">
-                    <h3 className="font-semibold mb-2">{rec.title}</h3>
-                    <p className="text-sm text-gray-300 line-clamp-3">
-                      {rec.reason}
-                    </p>
+                  <div className="relative aspect-[2/3]">
+                    <img
+                      src={rec.movieDetails?.poster_path}
+                      alt={rec.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 group-hover:opacity-0 transition-opacity duration-200" />
+                    <div className="absolute inset-0 p-4 flex flex-col justify-end group-hover:opacity-0 transition-opacity duration-200">
+                      <h3 className="font-semibold mb-2">{rec.title}</h3>
+                      <p className="text-sm text-gray-300">
+                        평점: {rec.movieDetails?.vote_average.toFixed(1)} / 10
+                      </p>
+                      <p className="text-sm text-gray-300">
+                        개봉일:{" "}
+                        {new Date(
+                          rec.movieDetails?.release_date || ""
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    <div className="absolute inset-0 p-4 flex flex-col justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <h3 className="font-semibold mb-2 text-center">
+                        {rec.title}
+                      </h3>
+                      <p className="text-sm text-gray-300 text-center line-clamp-6">
+                        {rec.reason}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -213,7 +271,7 @@ export default function Home() {
         {/* 인기 영화 섹션 */}
         <section>
           <h2 className="text-2xl font-semibold tracking-tight mb-6">
-            요즘 핫한 영화 플레이리스트
+            🔥요즘 핫한 영화
           </h2>
           {trendingMovies.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -222,24 +280,30 @@ export default function Home() {
                   key={movie.id}
                   onClick={() => handleMovieClick(movie)}
                   className="group relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 hover:scale-105">
-                  <img
-                    src={movie.poster_path}
-                    alt={movie.title}
-                    className="w-full h-64 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all duration-200" />
-                  <div className="absolute inset-0 p-4 flex flex-col justify-end">
-                    <h3 className="font-semibold mb-2">{movie.title}</h3>
-                    <p className="text-sm text-gray-300">
-                      {movie.ost.length}개의 OST
-                    </p>
+                  <div className="relative aspect-[2/3]">
+                    <img
+                      src={movie.poster_path}
+                      alt={movie.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all duration-200" />
+                    <div className="absolute inset-0 p-4 flex flex-col justify-end">
+                      <h3 className="font-semibold mb-2">{movie.title}</h3>
+                      <p className="text-sm text-gray-300">
+                        평점: {movie.vote_average.toFixed(1)} / 10
+                      </p>
+                      <p className="text-sm text-gray-300">
+                        개봉일:{" "}
+                        {new Date(movie.release_date).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center text-gray-400">
-              현재 OST 정보가 있는 인기 영화가 없습니다.
+              현재 인기 영화 정보를 불러오는 중입니다.
             </div>
           )}
         </section>

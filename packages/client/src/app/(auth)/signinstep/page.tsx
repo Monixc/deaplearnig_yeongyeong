@@ -180,7 +180,6 @@ export default function SignInStep() {
       // 분석 데이터 생성
       const analysisData = {
         userId: session?.user?.id || "anonymous",
-        timestamp: new Date().toISOString(),
         analysis: {
           genres: analysis.genres,
           popularity: analysis.popularity,
@@ -205,15 +204,27 @@ export default function SignInStep() {
         body: JSON.stringify(analysisData),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
+        throw new Error(result.error || "Failed to save analysis results");
+      }
+
+      if (!result.success) {
         throw new Error("Failed to save analysis results");
       }
+
+      console.log("Analysis saved successfully:", result);
 
       // 분석 페이지로 이동
       router.push("/analyzing");
     } catch (error) {
       console.error("Failed to analyze music taste:", error);
-      alert("음악 취향 분석 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "음악 취향 분석 중 오류가 발생했습니다."
+      );
     } finally {
       setIsAnalyzing(false);
     }

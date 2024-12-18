@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
+import { DynamoDB } from "aws-sdk";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+
+// DynamoDB 설정
+const dynamodb = new DynamoDB.DocumentClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
 async function getSpotifyToken() {
   const response = await fetch("https://accounts.spotify.com/api/token", {
@@ -20,79 +30,111 @@ async function getSpotifyToken() {
   return data.access_token;
 }
 
-async function getMovieDetails(title: string) {
-  const response = await fetch(
-    `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
-      title
-    )}`
-  );
-  const data = await response.json();
-  if (data.results && data.results.length > 0) {
-    const movie = data.results[0];
-    return {
-      title: movie.title,
-      poster_path: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
-      backdrop_path: `https://image.tmdb.org/t/p/original${movie.backdrop_path}`,
-      overview: movie.overview,
-      release_date: movie.release_date,
-      vote_average: movie.vote_average,
-    };
-  }
-  return null;
-}
-
-async function getSpotifyTracks(
-  token: string,
-  movieTitle: string,
-  songs: any[]
+async function searchSpotifyTrack(
+  title: string,
+  artist: string,
+  token: string
 ) {
-  const tracks = await Promise.all(
-    songs.map(async (song) => {
-      const query = `track:${song.title} artist:${song.artist}`;
-      const response = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-          query
-        )}&type=track&limit=1`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      const data = await response.json();
-      if (data.tracks && data.tracks.items.length > 0) {
-        const track = data.tracks.items[0];
-        return {
-          ...song,
-          spotify_url: track.external_urls.spotify,
-          preview_url: track.preview_url,
-          album_image: track.album.images[0]?.url,
-        };
+  try {
+    // 1. 정확한 검색
+    let response = await fetch(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+        `${title} ${artist}`
+      )}&type=track&limit=50`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
-      return song;
-    })
-  );
-  return tracks;
+    );
+
+    const data = await response.json();
+    const tracks = data.tracks?.items || [];
+
+    // 제목이나 아티스트가 부분적으로 일치하는 트랙 찾기
+    const matchingTrack = tracks.find(
+      (track) =>
+        track.name.toLowerCase().includes(title.toLowerCase()) ||
+        track.artists.some(
+          (a) =>
+            a.name.toLowerCase().includes(artist.toLowerCase()) ||
+            artist.toLowerCase().includes(a.name.toLowerCase())
+        )
+    );
+
+    if (!matchingTrack) return null;
+
+    return {
+      title: matchingTrack.name,
+      artist: matchingTrack.artists.map((a) => a.name).join(", "),
+      spotify_url: matchingTrack.external_urls.spotify,
+      preview_url: matchingTrack.preview_url,
+      album_image: matchingTrack.album.images[0]?.url,
+    };
+  } catch (error) {
+    console.error("Spotify search error:", error);
+    return null;
+  }
 }
 
 export async function POST(request: Request) {
   try {
-    const { title, songs } = await request.json();
+    const { title } = await request.json();
 
-    // TMDB에서 영화 정보 가져오기
-    const movieDetails = await getMovieDetails(title);
+    // 1. TMDB에서 영화 정보 가져오기
+    const movieResponse = await fetch(
+      `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
+        title
+      )}`
+    );
+    const movieData = await movieResponse.json();
+    const movie = movieData.results?.[0];
 
-    // Spotify에서 음악 정보 가져오��
+    if (!movie) {
+      throw new Error("Movie not found");
+    }
+
+    // 2. DynamoDB에서 OST 정보 가져오기
+    const { Items: ostItems } = await dynamodb
+      .scan({
+        TableName: "movie-music-data",
+        FilterExpression: "movieTitle = :title",
+        ExpressionAttributeValues: {
+          ":title": title,
+        },
+      })
+      .promise();
+
+    // 3. Spotify에서 각 OST 정보 가져오기
     const spotifyToken = await getSpotifyToken();
-    const tracksWithSpotify = await getSpotifyTracks(
-      spotifyToken,
-      title,
-      songs
+    const tracks = await Promise.all(
+      (ostItems || []).map(async (item) => {
+        const spotifyData = await searchSpotifyTrack(
+          item.songTitle,
+          item.artist,
+          spotifyToken
+        );
+        return (
+          spotifyData || {
+            title: item.songTitle,
+            artist: item.artist,
+          }
+        );
+      })
     );
 
     return NextResponse.json({
-      movie: movieDetails,
-      tracks: tracksWithSpotify,
+      movie: {
+        title: movie.title,
+        poster_path: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+        backdrop_path: movie.backdrop_path
+          ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}`
+          : null,
+        overview: movie.overview,
+        release_date: movie.release_date,
+        vote_average: movie.vote_average,
+      },
+      tracks,
     });
   } catch (error) {
     console.error("Error fetching media details:", error);

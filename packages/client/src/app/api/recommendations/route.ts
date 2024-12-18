@@ -1,17 +1,23 @@
 import { OpenAI } from "openai";
 import { DynamoDB } from "aws-sdk";
+import { NextResponse } from "next/server";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const dynamodb = new DynamoDB.DocumentClient({
-  region: process.env.REACT_APP_REGION,
-  credentials: {
-    accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.REACT_APP_SECRET_ACCESS_KEY!,
-  },
-});
+// AWS SDK 설정
+const awsConfig = {
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || "ap-northeast-2",
+};
+
+// AWS SDK 자격 증명 설정
+const AWS = require("aws-sdk");
+AWS.config.update(awsConfig);
+
+const dynamodb = new DynamoDB.DocumentClient();
 
 export async function POST(request: Request) {
   try {
@@ -20,15 +26,25 @@ export async function POST(request: Request) {
 
     if (!userTaste.genres || !userTaste.selectedTracks) {
       console.log("Invalid user taste data:", userTaste);
-      return new Response(
-        JSON.stringify({
+      return NextResponse.json(
+        {
           error: "Invalid user taste data",
           received: userTaste,
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
+        },
+        { status: 400 }
+      );
+    }
+
+    // AWS 자격 증명 확인
+    if (!awsConfig.accessKeyId || !awsConfig.secretAccessKey) {
+      console.error("AWS credentials missing:", {
+        hasAccessKey: !!awsConfig.accessKeyId,
+        hasSecretKey: !!awsConfig.secretAccessKey,
+        region: awsConfig.region,
+      });
+      return NextResponse.json(
+        { error: "AWS credentials not properly configured" },
+        { status: 500 }
       );
     }
 
@@ -40,13 +56,21 @@ export async function POST(request: Request) {
       })
       .promise();
 
+    if (!availableMovies || availableMovies.length === 0) {
+      console.error("No movies found in database");
+      return NextResponse.json(
+        { error: "No movies available for recommendations" },
+        { status: 500 }
+      );
+    }
+
     // 영화 제목 중복 제거
     const availableMovieTitles = [
-      ...new Set(availableMovies?.map((movie) => movie.movieTitle)),
+      ...new Set(availableMovies.map((movie) => movie.movieTitle)),
     ];
     console.log("Available movies:", availableMovieTitles);
 
-    // 1. GPT에 추천 요청 (사용 가능한 영화 목록 전달)
+    // 1. GPT에 추천 요청
     console.log("Requesting GPT recommendations...");
     const gptRecommendations = await getGptRecommendations(
       userTaste,
@@ -68,21 +92,15 @@ export async function POST(request: Request) {
     );
     console.log("Final recommendations:", finalRecommendations);
 
-    return new Response(JSON.stringify(finalRecommendations), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return NextResponse.json(finalRecommendations);
   } catch (error) {
     console.error("Detailed recommendation error:", error);
-    return new Response(
-      JSON.stringify({
+    return NextResponse.json(
+      {
         error: "Failed to generate recommendations",
         details: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      },
+      { status: 500 }
     );
   }
 }
@@ -166,7 +184,7 @@ async function getGptRecommendations(
         {
           role: "system",
           content: `당신은 음악 취향을 기반으로 영화를 추천하는 전문가입니다. 
-          주어진 영화 목록에서만 추천해야 하며, 목록에 없는 영화는 절대 추천하면 안 됩니다.항상 한글로만 응답하세요`,
+          주어진 영화 목록에서만 추천해야 하며, 목록에 없는 영화는 절대 추천하면 안 됩니다. 항상 한글로만 응답하세요.`,
         },
         {
           role: "user",
@@ -262,7 +280,7 @@ function combineRecommendations(
 ) {
   return gptRecommendations.recommendations
     .map((gptRec) => {
-      // DynamoDB에 매칭되는 영화 찾기
+      // DynamoDB��� 매칭되는 영화 찾기
       const movieMatch = movieData?.find((movie) => {
         const matchResult = movie?.title
           ?.toLowerCase()
