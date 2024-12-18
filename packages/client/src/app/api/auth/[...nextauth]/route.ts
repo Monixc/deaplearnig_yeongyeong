@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { Profile } from "next-auth";
 import SpotifyProvider from "next-auth/providers/spotify";
 
 const scopes = [
@@ -7,6 +7,10 @@ const scopes = [
   "user-read-private",
   "user-library-read",
 ].join(" ");
+
+interface SpotifyProfile extends Profile {
+  id: string;
+}
 
 const handler = NextAuth({
   providers: [
@@ -20,9 +24,9 @@ const handler = NextAuth({
   ],
   callbacks: {
     async jwt({ token, account, profile }) {
-      if (account) {
+      if (account && profile) {
         token.accessToken = account.access_token;
-        token.id = profile.id;
+        token.id = (profile as SpotifyProfile).id;
       }
       return token;
     },
