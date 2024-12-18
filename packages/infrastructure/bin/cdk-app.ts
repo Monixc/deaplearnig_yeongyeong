@@ -6,7 +6,7 @@ const app = new cdk.App();
 
 new CrawlerStack(app, "MovieMusicCrawlerStack", {
   env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID,
+    account: process.env.CDK_DEFAULT_ACCOUNT || process.env.REACT_ACCOUNT_ID,
     region: "ap-northeast-2",
   },
 });
