@@ -171,7 +171,7 @@ export default function Home() {
         {/* 추천 섹션 */}
         <section>
           <h2 className="text-2xl font-semibold tracking-tight mb-6">
-            {session?.user?.name}님을 위한 추천 플레이리스트
+            🎧 {session?.user?.name}님을 위한 추천 영화
           </h2>
           {loading ? (
             <div className="text-center">로딩 중...</div>
@@ -191,17 +191,34 @@ export default function Home() {
                   key={index}
                   onClick={() => handleMovieClick(rec)}
                   className="group relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 hover:scale-105">
-                  <img
-                    src={rec.movieDetails?.poster_path}
-                    alt={rec.title}
-                    className="w-full h-64 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all duration-200" />
-                  <div className="absolute inset-0 p-4 flex flex-col justify-end">
-                    <h3 className="font-semibold mb-2">{rec.title}</h3>
-                    <p className="text-sm text-gray-300 line-clamp-3">
-                      {rec.reason}
-                    </p>
+                  <div className="relative aspect-[2/3]">
+                    <img
+                      src={rec.movieDetails?.poster_path}
+                      alt={rec.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 group-hover:opacity-0 transition-opacity duration-200" />
+                    <div className="absolute inset-0 p-4 flex flex-col justify-end group-hover:opacity-0 transition-opacity duration-200">
+                      <h3 className="font-semibold mb-2">{rec.title}</h3>
+                      <p className="text-sm text-gray-300">
+                        평점: {rec.movieDetails?.vote_average.toFixed(1)} / 10
+                      </p>
+                      <p className="text-sm text-gray-300">
+                        개봉일:{" "}
+                        {new Date(
+                          rec.movieDetails?.release_date || ""
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    <div className="absolute inset-0 p-4 flex flex-col justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <h3 className="font-semibold mb-2 text-center">
+                        {rec.title}
+                      </h3>
+                      <p className="text-sm text-gray-300 text-center line-clamp-6">
+                        {rec.reason}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -212,7 +229,7 @@ export default function Home() {
         {/* 인기 영화 섹션 */}
         <section>
           <h2 className="text-2xl font-semibold tracking-tight mb-6">
-            요즘 핫한 영화 플레이리스트
+            🔥요즘 핫한 영화
           </h2>
           {trendingMovies.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -221,21 +238,23 @@ export default function Home() {
                   key={movie.id}
                   onClick={() => handleMovieClick(movie)}
                   className="group relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 hover:scale-105">
-                  <img
-                    src={movie.poster_path}
-                    alt={movie.title}
-                    className="w-full h-64 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all duration-200" />
-                  <div className="absolute inset-0 p-4 flex flex-col justify-end">
-                    <h3 className="font-semibold mb-2">{movie.title}</h3>
-                    <p className="text-sm text-gray-300">
-                      평점: {movie.vote_average.toFixed(1)} / 10
-                    </p>
-                    <p className="text-sm text-gray-300">
-                      개봉일:{" "}
-                      {new Date(movie.release_date).toLocaleDateString()}
-                    </p>
+                  <div className="relative aspect-[2/3]">
+                    <img
+                      src={movie.poster_path}
+                      alt={movie.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-all duration-200" />
+                    <div className="absolute inset-0 p-4 flex flex-col justify-end">
+                      <h3 className="font-semibold mb-2">{movie.title}</h3>
+                      <p className="text-sm text-gray-300">
+                        평점: {movie.vote_average.toFixed(1)} / 10
+                      </p>
+                      <p className="text-sm text-gray-300">
+                        개봉일:{" "}
+                        {new Date(movie.release_date).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
