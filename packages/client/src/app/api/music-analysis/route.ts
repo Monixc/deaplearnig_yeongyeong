@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 
 // AWS SDK 설정
 const awsConfig = {
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || "ap-northeast-2",
+  accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.REACT_APP_SECRET_ACCESS_KEY!,
+  region: "ap-northeast-2",
 };
 
 // AWS SDK 자격 증명 설정

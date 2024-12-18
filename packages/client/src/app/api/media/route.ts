@@ -7,10 +7,10 @@ const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 
 // DynamoDB 설정
 const dynamodb = new DynamoDB.DocumentClient({
-  region: process.env.AWS_REGION,
+  region: "ap-northeast-2",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.REACT_APP_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.REACT_APP_SECRET_ACCESS_KEY!,
   },
 });
 
